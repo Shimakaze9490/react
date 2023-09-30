@@ -948,6 +948,8 @@ function markRef(current: Fiber | null, workInProgress: Fiber) {
   }
 }
 
+// HACK performUnitOfWork -> begin分发 -> updateFunctionComponent
+// 简单说就做了3件事情: 查找最近context栈; 处理hooks; reconcileChildren协调子节点;
 function updateFunctionComponent(
   current,
   workInProgress,
@@ -973,6 +975,7 @@ function updateFunctionComponent(
 
   let context;
   if (!disableLegacyContext) {
+    // Context: getUnmaskedContext / getMaskedContext
     const unmaskedContext = getUnmaskedContext(workInProgress, Component, true);
     context = getMaskedContext(workInProgress, unmaskedContext);
   }

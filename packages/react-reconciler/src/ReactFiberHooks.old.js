@@ -370,10 +370,11 @@ function areHookInputsEqual(
   return true;
 }
 
+// HACK 函数组件'注入hook能力的入口', 'called by updateFunctionComponent'
 export function renderWithHooks<Props, SecondArg>(
-  current: Fiber | null,
-  workInProgress: Fiber,
-  Component: (p: Props, arg: SecondArg) => any,
+  current: Fiber | null, // 旧fiber
+  workInProgress: Fiber, // 新fiber
+  Component: (p: Props, arg: SecondArg) => any, // 实际上是component.render函数
   props: Props,
   secondArg: SecondArg,
   nextRenderLanes: Lanes,
@@ -441,6 +442,9 @@ export function renderWithHooks<Props, SecondArg>(
       didScheduleRenderPhaseUpdateDuringThisPass = false;
       localIdCounter = 0;
 
+      // 在一个组件的渲染方法中调用一个设置状态的函数。
+      // 立即调用一个事件处理器，而不是传递一个函数。
+      // 有一个无限设置与重渲染的useEffect钩子。
       if (numberOfReRenders >= RE_RENDER_LIMIT) {
         throw new Error(
           'Too many re-renders. React limits the number of renders to prevent ' +
@@ -661,7 +665,7 @@ function updateWorkInProgressHook(): Hook {
   // the dispatcher used for mounts.
   let nextCurrentHook: null | Hook;
   if (currentHook === null) {
-    const current = currentlyRenderingFiber.alternate;
+    const current = currentlyRenderingFiber.alternate; // HACK 更新阶段开始, 复用整条hook链表
     if (current !== null) {
       nextCurrentHook = current.memoizedState;
     } else {
@@ -693,9 +697,11 @@ function updateWorkInProgressHook(): Hook {
 
     currentHook = nextCurrentHook;
 
+    // HACK 新增一个hook节点对象
     const newHook: Hook = {
       memoizedState: currentHook.memoizedState,
 
+      // 跟协调中断恢复相关的
       baseState: currentHook.baseState,
       baseQueue: currentHook.baseQueue,
       queue: currentHook.queue,
@@ -703,6 +709,7 @@ function updateWorkInProgressHook(): Hook {
       next: null,
     };
 
+    // hook0 链表头
     if (workInProgressHook === null) {
       // This is the first hook in the list.
       currentlyRenderingFiber.memoizedState = workInProgressHook = newHook;
@@ -731,7 +738,7 @@ function mountReducer<S, I, A>(
   initialArg: I,
   init?: I => S,
 ): [S, Dispatch<A>] {
-  const hook = mountWorkInProgressHook();
+  const hook = mountWorkInProgressHook(); // HACK 获取当前工作中的hook
   let initialState;
   if (init !== undefined) {
     initialState = init(initialArg);
@@ -1665,10 +1672,12 @@ function updateRef<T>(initialValue: T): {|current: T|} {
   return hook.memoizedState;
 }
 
+// HACK 什么是fiberFlags ? NoFlags / Placement / Update / ChildDeletion / Passive
+// Passive就是useEffect / Update就是useLayoutEffect
 function mountEffectImpl(fiberFlags, hookFlags, create, deps): void {
   const hook = mountWorkInProgressHook();
-  const nextDeps = deps === undefined ? null : deps;
-  currentlyRenderingFiber.flags |= fiberFlags;
+  const nextDeps = deps === undefined ? null : deps; // 获取依赖
+  currentlyRenderingFiber.flags |= fiberFlags; // 在该fiber上标记该副作用
   hook.memoizedState = pushEffect(
     HookHasEffect | hookFlags,
     create,
@@ -1687,6 +1696,8 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps): void {
     destroy = prevEffect.destroy;
     if (nextDeps !== null) {
       const prevDeps = prevEffect.deps;
+
+      /* areHookInputsEqual 遍历依赖项, 用Object.is比对是否变化了 */
       if (areHookInputsEqual(nextDeps, prevDeps)) {
         hook.memoizedState = pushEffect(hookFlags, create, destroy, nextDeps);
         return;
@@ -1699,7 +1710,7 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps): void {
   hook.memoizedState = pushEffect(
     HookHasEffect | hookFlags,
     create,
-    destroy,
+    destroy, // 什么是destroy? 就是create执行后返回的函数
     nextDeps,
   );
 }
@@ -1733,7 +1744,7 @@ function updateEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
-  return updateEffectImpl(PassiveEffect, HookPassive, create, deps);
+  return updateEffectImpl(PassiveEffect /* HACK */, HookPassive, create, deps);
 }
 
 function mountInsertionEffect(
@@ -1772,7 +1783,7 @@ function updateLayoutEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
-  return updateEffectImpl(UpdateEffect, HookLayout, create, deps);
+  return updateEffectImpl(UpdateEffect /* HACK */, HookLayout, create, deps);
 }
 
 function imperativeHandleEffect<T>(

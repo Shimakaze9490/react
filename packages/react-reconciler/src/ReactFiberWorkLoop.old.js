@@ -2772,10 +2772,11 @@ function jnd(timeElapsed: number) {
 }
 
 function checkForNestedUpdates() {
-  if (nestedUpdateCount > NESTED_UPDATE_LIMIT) {
+  if (nestedUpdateCount > NESTED_UPDATE_LIMIT /* 50 */) {
     nestedUpdateCount = 0;
     rootWithNestedUpdates = null;
 
+    // componentWillUpdate
     throw new Error(
       'Maximum update depth exceeded. This can happen when a component ' +
         'repeatedly calls setState inside componentWillUpdate or ' +
@@ -2785,6 +2786,7 @@ function checkForNestedUpdates() {
   }
 
   if (__DEV__) {
+    // PassiveUpdate 消极更新, 就是指 useEffect
     if (nestedPassiveUpdateCount > NESTED_PASSIVE_UPDATE_LIMIT) {
       nestedPassiveUpdateCount = 0;
       rootWithPassiveNestedUpdates = null;
