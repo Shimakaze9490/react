@@ -8,7 +8,6 @@ function App() {
   // console.log('workInProgress', workInProgress);
   // console.log('workInProgressHook', workInProgressHook);
   // debugger;
-  debugger;
 
   const [count, setCount] = useState(0);
 
