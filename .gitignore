@@ -1,6 +1,6 @@
 .DS_STORE
 node_modules
-!/build/node_modules
+!/build.keep/node_modules
 scripts/flow/*/.flowconfig
 .flowconfig
 *~
