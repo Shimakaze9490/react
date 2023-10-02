@@ -2,6 +2,7 @@
 node_modules
 !/build.keep/node_modules
 scripts/flow/*/.flowconfig
+build
 .flowconfig
 *~
 *.pyc
