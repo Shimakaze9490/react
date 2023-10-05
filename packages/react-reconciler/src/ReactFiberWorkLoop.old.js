@@ -447,7 +447,7 @@ export function getCurrentTime() {
 export function requestUpdateLane(fiber: Fiber): Lane {
   // Special cases
   const mode = fiber.mode;
-  if ((mode & ConcurrentMode) === NoMode) {
+  if ((mode & ConcurrentMode) === NoMode) { // HACK 如果不是并发模式, 是没有优先级的, 只能取同步更新; 这是两个模式最主要的区别!
     return (SyncLane: Lane);
   } else if (
     !deferRenderPhaseUpdateToNextBatch &&
@@ -463,9 +463,10 @@ export function requestUpdateLane(fiber: Fiber): Lane {
     // This behavior is only a fallback. The flag only exists until we can roll
     // out the setState warning, since existing code might accidentally rely on
     // the current behavior.
-    return pickArbitraryLane(workInProgressRootRenderLanes);
+    return pickArbitraryLane(workInProgressRootRenderLanes); // 调用getHighestPriorityLane
   }
 
+  // 并发模式下的非紧急更新: transition
   const isTransition = requestCurrentTransition() !== NoTransition;
   if (isTransition) {
     if (__DEV__ && ReactCurrentBatchConfig.transition !== null) {
@@ -525,13 +526,14 @@ function requestRetryLane(fiber: Fiber) {
   return claimNextRetryLane();
 }
 
+// HACK 调度器的入口!! scheduleUpdateOnFiber -> scheduleCallback
 export function scheduleUpdateOnFiber(
   root: FiberRoot,
   fiber: Fiber,
   lane: Lane,
   eventTime: number,
 ) {
-  checkForNestedUpdates();
+  checkForNestedUpdates(); // 检查嵌套更新, 50次
 
   if (__DEV__) {
     if (isRunningInsertionEffect) {
@@ -632,7 +634,9 @@ export function scheduleUpdateOnFiber(
       }
     }
 
+    // 准备调度了: 同步还是异步
     ensureRootIsScheduled(root, eventTime);
+
     if (
       lane === SyncLane &&
       executionContext === NoContext &&
@@ -751,6 +755,9 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
 
   // Schedule a new callback.
   let newCallbackNode;
+
+  // HACK 核心: 调度是同步的还是异步的!!
+
   if (newCallbackPriority === SyncLane) {
     // Special case: Sync React callbacks are scheduled on a special
     // internal queue
@@ -791,6 +798,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
     }
     newCallbackNode = null;
   } else {
+    // HACK 异步调度, 需要将lane模型(31个)转换 事件优先级(5个), 再转为Priority优先级(5个)
     let schedulerPriorityLevel;
     switch (lanesToEventPriority(nextLanes)) {
       case DiscreteEventPriority:
@@ -809,6 +817,8 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
         schedulerPriorityLevel = NormalSchedulerPriority;
         break;
     }
+
+    // HACK 真正执行根据优先级的调度!! 关注回调performConcurrentWorkOnRoot, render阶段的入口
     newCallbackNode = scheduleCallback(
       schedulerPriorityLevel,
       performConcurrentWorkOnRoot.bind(null, root),
@@ -821,6 +831,8 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
 
 // This is the entry point for every concurrent task, i.e. anything that
 // goes through Scheduler.
+// HACK render阶段的入口:
+// performConcurrentWorkOnRoot -> renderRootSync -> workLoopSync -> performUnitOfWork -> beginWork/completeWork -> 
 function performConcurrentWorkOnRoot(root, didTimeout) {
   if (enableProfilerTimer && enableProfilerNestedUpdatePhase) {
     resetNestedUpdateFlag();

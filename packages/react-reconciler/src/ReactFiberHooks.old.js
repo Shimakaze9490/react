@@ -192,6 +192,7 @@ let currentlyRenderingFiber: Fiber = (null: any);
 let currentHook: Hook | null = null;
 let workInProgressHook: Hook | null = null;
 
+// HACK render phase(render阶段)的更新, 特殊处理!!
 // Whether an update was scheduled at any point during the render phase. This
 // does not get reset if we do another render pass; only when we're completely
 // finished evaluating this component. This is an optimization so we know
@@ -370,7 +371,9 @@ function areHookInputsEqual(
   return true;
 }
 
-// HACK 函数组件'注入hook能力的入口', 'called by updateFunctionComponent'
+// HACK 函数组件'注入hook能力的入口'
+// useState/useReducer: performUnitOfWork -> beginWork -> updateFunction -> renderWithHooks -> dispatcher -> 遍历updateWorkInProgressHook -> 新增update -> 汇入Scheduler, 等待更新!
+// useEffect/useLayoutEffect -> mountEffectImpl -> 处理deps/fiberFlags/create -> pushEffect -> memoizedState
 export function renderWithHooks<Props, SecondArg>(
   current: Fiber | null, // 旧fiber
   workInProgress: Fiber, // 新fiber
@@ -396,6 +399,8 @@ export function renderWithHooks<Props, SecondArg>(
   workInProgress.memoizedState = null;
   workInProgress.updateQueue = null;
   workInProgress.lanes = NoLanes;
+
+  /* HACK 下面这段是判断应该使用那个dispatcher(ReactCurrentDispatcher)， current是判断mount */
 
   // The following should have already been reset
   // currentHook = null;
@@ -431,6 +436,9 @@ export function renderWithHooks<Props, SecondArg>(
         : HooksDispatcherOnUpdate;
   }
 
+  // HACK 上面用于确定使用哪个dispatcher, 在全局变量ReactCurrentDispatcher上
+
+  // HACK 接着开始执行函数组件本体! 通过resolveDispatcher获取上面的Dispatcher, 正式触发一个个useState, useEffect, useRef等等
   let children = Component(props, secondArg);
 
   // Check if there was a render phase update
@@ -640,6 +648,7 @@ function mountWorkInProgressHook(): Hook {
   const hook: Hook = {
     memoizedState: null,
 
+    /* HACK 是为了存在优先级打断并恢复状态 */
     baseState: null,
     baseQueue: null,
     queue: null,
@@ -657,6 +666,7 @@ function mountWorkInProgressHook(): Hook {
   return workInProgressHook;
 }
 
+// HACK 更新hook: 正常更新 与 render更新(暴露在上下文)
 function updateWorkInProgressHook(): Hook {
   // This function is used both for updates and for re-renders triggered by a
   // render phase update. It assumes there is either a current hook we can
@@ -1513,20 +1523,26 @@ function forceStoreRerender(fiber) {
   }
 }
 
+// HACK 挂载时的useState
 function mountState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
+  // 获得初始化构造的hook对象, 形成链表
   const hook = mountWorkInProgressHook();
+
   if (typeof initialState === 'function') {
     // $FlowFixMe: Flow doesn't like mixed types
     initialState = initialState();
   }
-  hook.memoizedState = hook.baseState = initialState;
+  hook.memoizedState = hook.baseState = initialState; // 初始化值
+
+  // 初始化updateQueue
   const queue: UpdateQueue<S, BasicStateAction<S>> = {
     pending: null,
     interleaved: null,
     lanes: NoLanes,
     dispatch: null,
+    // 优化
     lastRenderedReducer: basicStateReducer,
     lastRenderedState: (initialState: any),
   };
@@ -1541,6 +1557,7 @@ function mountState<S>(
   return [hook.memoizedState, dispatch];
 }
 
+// HACK useState就是固定了reducer(即basicStateReducer)的useReducer
 function updateState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
@@ -1553,21 +1570,24 @@ function rerenderState<S>(
   return rerenderReducer(basicStateReducer, (initialState: any));
 }
 
+// HACK 构造成effect对象后统一挂载到fiber.updateQueue的环状链表
 function pushEffect(tag, create, destroy, deps) {
   const effect: Effect = {
-    tag,
-    create,
-    destroy,
-    deps,
+    tag, // 类别
+    create, // 回调
+    destroy, // 销毁
+    deps, // 依赖
     // Circular
     next: (null: any),
   };
   let componentUpdateQueue: null | FunctionComponentUpdateQueue = (currentlyRenderingFiber.updateQueue: any);
+  // 说明是effect0
   if (componentUpdateQueue === null) {
-    componentUpdateQueue = createFunctionComponentUpdateQueue();
+    componentUpdateQueue = createFunctionComponentUpdateQueue(); // 初始化updateQueue: { lastEffect: null }, 
     currentlyRenderingFiber.updateQueue = (componentUpdateQueue: any);
-    componentUpdateQueue.lastEffect = effect.next = effect;
+    componentUpdateQueue.lastEffect = effect.next = effect; // 挂载当前的effect, 自成环
   } else {
+    // 形成effect链
     const lastEffect = componentUpdateQueue.lastEffect;
     if (lastEffect === null) {
       componentUpdateQueue.lastEffect = effect.next = effect;
@@ -1672,14 +1692,17 @@ function updateRef<T>(initialValue: T): {|current: T|} {
   return hook.memoizedState;
 }
 
-// HACK 什么是fiberFlags ? NoFlags / Placement / Update / ChildDeletion / Passive
+// renderWithHooks - > mountEffectImpl -> pushEffect
+// HACK 什么是fiberFlags: NoFlags / Placement / Update / ChildDeletion / Passive
 // Passive就是useEffect / Update就是useLayoutEffect
 function mountEffectImpl(fiberFlags, hookFlags, create, deps): void {
   const hook = mountWorkInProgressHook();
   const nextDeps = deps === undefined ? null : deps; // 获取依赖
   currentlyRenderingFiber.flags |= fiberFlags; // 在该fiber上标记该副作用
+
+  // 所以这里的memoizedState存的是effect对象
   hook.memoizedState = pushEffect(
-    HookHasEffect | hookFlags,
+    HookHasEffect | hookFlags, // hookFlags = HookLayout / HookPassive
     create,
     undefined,
     nextDeps,
@@ -1692,23 +1715,29 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps): void {
   let destroy = undefined;
 
   if (currentHook !== null) {
+
+    // HACK 什么是prevEffect? 同一个hook的旧快照, 执行下一快照的更新前, 需要先执行上一次快照的销毁函数destroy
     const prevEffect = currentHook.memoizedState;
     destroy = prevEffect.destroy;
     if (nextDeps !== null) {
       const prevDeps = prevEffect.deps;
 
-      /* areHookInputsEqual 遍历依赖项, 用Object.is比对是否变化了 */
+      // HACK 这里就是对比新旧依赖变化, 采用Object.is
       if (areHookInputsEqual(nextDeps, prevDeps)) {
+        // HACK 为什么依赖项没有改变还要push一个effect
         hook.memoizedState = pushEffect(hookFlags, create, destroy, nextDeps);
         return;
       }
     }
   }
 
-  currentlyRenderingFiber.flags |= fiberFlags;
+  // TODOTODO 下次继续的位置
 
+  // 依赖改变了, 和上面有什么区别: HookHasEffect / "Represents whether effect should fire"
+
+  currentlyRenderingFiber.flags |= fiberFlags;
   hook.memoizedState = pushEffect(
-    HookHasEffect | hookFlags,
+    HookHasEffect | hookFlags, // hookFlags = HookLayout / HookPassive
     create,
     destroy, // 什么是destroy? 就是create执行后返回的函数
     nextDeps,
@@ -2202,6 +2231,7 @@ function refreshCache<T>(fiber: Fiber, seedKey: ?() => T, seedValue: T) {
   // TODO: Warn if unmounted?
 }
 
+// HACK 旧名: dispatchAction, 触发更新!!
 function dispatchReducerAction<S, A>(
   fiber: Fiber,
   queue: UpdateQueue<S, A>,
@@ -2227,12 +2257,15 @@ function dispatchReducerAction<S, A>(
     next: (null: any),
   };
 
+  // HACK 特殊情况: 处理render阶段的更新
   if (isRenderPhaseUpdate(fiber)) {
     enqueueRenderPhaseUpdate(queue, update);
   } else {
     const root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
     if (root !== null) {
       const eventTime = requestEventTime();
+
+      // HACK 正式进入调度阶段!!
       scheduleUpdateOnFiber(root, fiber, lane, eventTime);
       entangleTransitionUpdate(root, queue, lane);
     }
@@ -2241,6 +2274,7 @@ function dispatchReducerAction<S, A>(
   markUpdateInDevTools(fiber, lane, action);
 }
 
+// 旧dispatchAction
 function dispatchSetState<S, A>(
   fiber: Fiber,
   queue: UpdateQueue<S, A>,
@@ -2266,6 +2300,7 @@ function dispatchSetState<S, A>(
     next: (null: any),
   };
 
+  // HACK 特殊情况: 处理render阶段的更新
   if (isRenderPhaseUpdate(fiber)) {
     enqueueRenderPhaseUpdate(queue, update);
   } else {
@@ -2285,6 +2320,7 @@ function dispatchSetState<S, A>(
           ReactCurrentDispatcher.current = InvalidNestedHooksDispatcherOnUpdateInDEV;
         }
         try {
+          // HACK eagerState优化, state无改变直接return
           const currentState: S = (queue.lastRenderedState: any);
           const eagerState = lastRenderedReducer(currentState, action);
           // Stash the eagerly computed state, and the reducer used to compute
@@ -2445,6 +2481,8 @@ if (enableCache) {
   (ContextOnlyDispatcher: Dispatcher).useCacheRefresh = throwInvalidHookError;
 }
 
+// HACK 在初始化(挂载)期间使用的dispatcher(派发器), 可以根据不同上下文调用不同的具体实现, 方便区别对待
+// HooksDispatcherOnMount 与 HooksDispatcherOnUpdate
 const HooksDispatcherOnMount: Dispatcher = {
   readContext,
 

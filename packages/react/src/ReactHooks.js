@@ -21,6 +21,7 @@ import ReactCurrentDispatcher from './ReactCurrentDispatcher';
 type BasicStateAction<S> = (S => S) | S;
 type Dispatch<A> = A => void;
 
+// 选择完ReactCurrentDispatcher后, 执行Component()前获取dispatcher
 function resolveDispatcher() {
   const dispatcher = ReactCurrentDispatcher.current;
   if (__DEV__) {

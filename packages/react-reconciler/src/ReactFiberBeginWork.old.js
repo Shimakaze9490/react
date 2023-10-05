@@ -285,6 +285,7 @@ if (__DEV__) {
   didWarnAboutDefaultPropsOnFunctionComponent = {};
 }
 
+// HACK 核心协调: 往下构建一层, 将子element数组变成child链表
 export function reconcileChildren(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -3685,6 +3686,7 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
   return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
 }
 
+// HACK fiber的模拟递归, 将原先的'栈协调'变成了'fiber协调'
 function beginWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -3780,6 +3782,7 @@ function beginWork(
   // move this assignment out of the common path and into each branch.
   workInProgress.lanes = NoLanes;
 
+  // HACK 组件分发处理
   switch (workInProgress.tag) {
     case IndeterminateComponent: {
       return mountIndeterminateComponent(

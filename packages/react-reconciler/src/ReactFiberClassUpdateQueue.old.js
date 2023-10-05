@@ -454,6 +454,7 @@ function getStateFromUpdate<State>(
   return prevState;
 }
 
+// processUpdateQueue: HostRoot和ClassComponent, 使用的更新Update的模型和流程
 export function processUpdateQueue<State>(
   workInProgress: Fiber,
   props: any,
@@ -527,6 +528,8 @@ export function processUpdateQueue<State>(
     do {
       const updateLane = update.lane;
       const updateEventTime = update.eventTime;
+
+      // HACK 遍历每个Update, 'isSubsetOfLanes' 判断是否有足够的优先级: 如果没有则clone下放到下次执行的链表中
       if (!isSubsetOfLanes(renderLanes, updateLane)) {
         // Priority is insufficient. Skip this update. If this is the first
         // skipped update, the previous update/state is the new base
@@ -543,7 +546,7 @@ export function processUpdateQueue<State>(
         };
         if (newLastBaseUpdate === null) {
           newFirstBaseUpdate = newLastBaseUpdate = clone;
-          newBaseState = newState;
+          newBaseState = newState; // HACK 第一个不够优先级时的状态!!
         } else {
           newLastBaseUpdate = newLastBaseUpdate.next = clone;
         }
@@ -569,6 +572,7 @@ export function processUpdateQueue<State>(
           newLastBaseUpdate = newLastBaseUpdate.next = clone;
         }
 
+        // HACK newState` = getStateFromUpdate(newState);
         // Process this update.
         newState = getStateFromUpdate(
           workInProgress,
@@ -614,12 +618,13 @@ export function processUpdateQueue<State>(
       }
     } while (true);
 
+    // 说明链表中所有Update优先级都足够, 没有遗留到下次执行
     if (newLastBaseUpdate === null) {
       newBaseState = newState;
     }
 
-    queue.baseState = ((newBaseState: any): State);
-    queue.firstBaseUpdate = newFirstBaseUpdate;
+    queue.baseState = ((newBaseState: any): State); // HACK 特别理解这里的newBaseState, 出现第一个不够优先级时, 计算出的状态, 是下一次个更新的基础。
+    queue.firstBaseUpdate = newFirstBaseUpdate; // 更新登记
     queue.lastBaseUpdate = newLastBaseUpdate;
 
     // Interleaved updates are stored on a separate queue. We aren't going to
@@ -647,7 +652,7 @@ export function processUpdateQueue<State>(
     // that regardless.
     markSkippedUpdateLanes(newLanes);
     workInProgress.lanes = newLanes;
-    workInProgress.memoizedState = newState;
+    workInProgress.memoizedState = newState; // 正式更新该fiber的状态, 两种情况: 全部足够优先级 / 存在优先级不够
   }
 
   if (__DEV__) {
