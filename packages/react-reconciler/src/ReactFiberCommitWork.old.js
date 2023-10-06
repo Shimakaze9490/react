@@ -318,6 +318,8 @@ function safelyCallDestroy(
 let focusedInstanceHandle: null | Fiber = null;
 let shouldFireAfterActiveInstanceBlur: boolean = false;
 
+// HACK commit的子阶段1
+// commitBeforeMutationEffects -> commitBeforeMutationEffects_begin -> 
 export function commitBeforeMutationEffects(
   root: FiberRoot,
   firstChild: Fiber,
@@ -559,13 +561,16 @@ function commitHookEffectListUnmount(
   }
 }
 
+// HACK commitRootImpl -> flushPassiveEffects -> flushPassiveEffectsImpl -> commitPassiveMountEffects -> commitPassiveMountOnFiber -> commitHookEffectListMount
 function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
   const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any);
   const lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
   if (lastEffect !== null) {
-    const firstEffect = lastEffect.next;
+    const firstEffect = lastEffect.next; // 环形链表last.next
     let effect = firstEffect;
     do {
+
+      // 这里比较flags, 本次执行effect类别
       if ((effect.tag & flags) === flags) {
         if (enableSchedulingProfiler) {
           if ((flags & HookPassive) !== NoHookEffect) {
@@ -575,6 +580,7 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
           }
         }
 
+        // HACK 最终执行回调函数create, 产生destory!!
         // Mount
         const create = effect.create;
         if (__DEV__) {
@@ -599,6 +605,7 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
 
         if (__DEV__) {
           const destroy = effect.destroy;
+          // 开发环境追踪hook, 形成快照
           if (destroy !== undefined && typeof destroy !== 'function') {
             let hookName;
             if ((effect.tag & HookLayout) !== NoFlags) {
@@ -699,6 +706,7 @@ export function commitPassiveEffectDurations(
   }
 }
 
+// HACK commitLayoutEffectOnFiber -> enqueuePendingPassiveProfilerEffect
 function commitLayoutEffectOnFiber(
   finishedRoot: FiberRoot,
   current: Fiber | null,
@@ -2767,9 +2775,12 @@ function commitPassiveMountEffects_complete(
   while (nextEffect !== null) {
     const fiber = nextEffect;
 
+    // 这里判断最初打上的副作用标记
     if ((fiber.flags & Passive) !== NoFlags) {
       setCurrentDebugFiberInDEV(fiber);
       try {
+
+        // HACK 执行
         commitPassiveMountOnFiber(
           root,
           fiber,

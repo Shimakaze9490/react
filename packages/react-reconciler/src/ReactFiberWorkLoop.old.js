@@ -1028,6 +1028,8 @@ export function queueRecoverableErrors(errors: Array<CapturedValue<mixed>>) {
   }
 }
 
+// HACK 标志着Render结束, Commit阶段开始
+// performConcurrentWorkOnRoot -> finishConcurrentRender -> commitRoot -> commitRootImpl
 function finishConcurrentRender(root, exitStatus, lanes) {
   switch (exitStatus) {
     case RootInProgress:
@@ -1994,6 +1996,7 @@ function commitRoot(
   return null;
 }
 
+// HACK commit的父任务: 包含3个大的do..while循环
 function commitRootImpl(
   root: FiberRoot,
   recoverableErrors: null | Array<CapturedValue<mixed>>,
@@ -2007,6 +2010,8 @@ function commitRootImpl(
     // no more pending effects.
     // TODO: Might be better if `flushPassiveEffects` did not automatically
     // flush synchronous work at the end, to avoid factoring hazards like this.
+
+    // HACK 执行useEffect, 也就是PassiveEffect
     flushPassiveEffects();
   } while (rootWithPendingPassiveEffects !== null);
   flushRenderPhaseStrictModeWarningsInDEV();
@@ -2143,6 +2148,8 @@ function commitRootImpl(
     // The first phase a "before mutation" phase. We use this phase to read the
     // state of the host tree right before we mutate it. This is where
     // getSnapshotBeforeUpdate is called.
+
+    // HACK 子阶段1 commitBeforeMutationEffects
     const shouldFireAfterActiveInstanceBlur = commitBeforeMutationEffects(
       root,
       finishedWork,
@@ -2365,6 +2372,8 @@ function releaseRootPooledCache(root: FiberRoot, remainingLanes: Lanes) {
   }
 }
 
+// HACK flushPassiveEffects, 触发useEffect的回调函数
+// commitRootImpl -> flushPassiveEffectsImpl -> commitPassiveMountEffects -> .. -> commitPassiveMountOnFiber -> commitHookEffectListMount
 export function flushPassiveEffects(): boolean {
   // Returns whether passive effects were flushed.
   // TODO: Combine this check with the one in flushPassiveEFfectsImpl. We should
@@ -2455,6 +2464,8 @@ function flushPassiveEffectsImpl() {
   executionContext |= CommitContext;
 
   commitPassiveUnmountEffects(root.current);
+
+  // 提交副作用
   commitPassiveMountEffects(root, root.current, lanes, transitions);
 
   // TODO: Move to commitPassiveMountEffects

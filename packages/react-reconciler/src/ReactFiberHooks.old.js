@@ -1573,7 +1573,7 @@ function rerenderState<S>(
 // HACK 构造成effect对象后统一挂载到fiber.updateQueue的环状链表
 function pushEffect(tag, create, destroy, deps) {
   const effect: Effect = {
-    tag, // 类别
+    tag, // 类别, 区分useEffect, useLayoutEffect
     create, // 回调
     destroy, // 销毁
     deps, // 依赖
@@ -1618,6 +1618,10 @@ function getCallerStackFrame(): string {
     : stackFrames.slice(2, 3).join('\n');
 }
 
+// HACK useRef的两种形态: mountRef 和 updateRef
+// class组件中: ReactCreateRef.js
+// ref在生命周期中结算(仅HostComponent、ClassComponent、ForwardRef能使用ref):
+// 销毁和更新: commitAttachRef / 
 function mountRef<T>(initialValue: T): {|current: T|} {
   const hook = mountWorkInProgressHook();
   if (enableUseRefAccessWarning) {
@@ -1681,15 +1685,16 @@ function mountRef<T>(initialValue: T): {|current: T|} {
       return ref;
     }
   } else {
+    // useRef核心代码只有这几行
     const ref = {current: initialValue};
-    hook.memoizedState = ref;
+    hook.memoizedState = ref; // 构造的对象挂载在memorizedState上
     return ref;
   }
 }
 
 function updateRef<T>(initialValue: T): {|current: T|} {
   const hook = updateWorkInProgressHook();
-  return hook.memoizedState;
+  return hook.memoizedState; // 直接返回对象
 }
 
 // renderWithHooks - > mountEffectImpl -> pushEffect
@@ -1698,10 +1703,11 @@ function updateRef<T>(initialValue: T): {|current: T|} {
 function mountEffectImpl(fiberFlags, hookFlags, create, deps): void {
   const hook = mountWorkInProgressHook();
   const nextDeps = deps === undefined ? null : deps; // 获取依赖
-  currentlyRenderingFiber.flags |= fiberFlags; // 在该fiber上标记该副作用
+  currentlyRenderingFiber.flags |= fiberFlags; // 在该fiber上标记该副作用, 区分useEffect/useLayoutEffect
 
   // 所以这里的memoizedState存的是effect对象
   hook.memoizedState = pushEffect(
+    // HookHasEffect是 '执行标记', 仅依赖deps不同时添加
     HookHasEffect | hookFlags, // hookFlags = HookLayout / HookPassive
     create,
     undefined,
@@ -1709,6 +1715,7 @@ function mountEffectImpl(fiberFlags, hookFlags, create, deps): void {
   );
 }
 
+// 更新时副作用: useEffect
 function updateEffectImpl(fiberFlags, hookFlags, create, deps): void {
   const hook = updateWorkInProgressHook();
   const nextDeps = deps === undefined ? null : deps;
@@ -1794,7 +1801,8 @@ function mountLayoutEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
-  let fiberFlags: Flags = UpdateEffect;
+  let fiberFlags: Flags = UpdateEffect; // 4
+  // 同步异步
   if (enableSuspenseLayoutEffectSemantics) {
     fiberFlags |= LayoutStaticEffect;
   }
