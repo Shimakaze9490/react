@@ -526,6 +526,7 @@ function requestRetryLane(fiber: Fiber) {
   return claimNextRetryLane();
 }
 
+// 
 // HACK 调度器的入口!! scheduleUpdateOnFiber -> scheduleCallback
 export function scheduleUpdateOnFiber(
   root: FiberRoot,

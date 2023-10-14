@@ -846,6 +846,7 @@ function completeDehydratedSuspenseBoundary(
   }
 }
 
+// HACK '归'阶段
 function completeWork(
   current: Fiber | null,
   workInProgress: Fiber,

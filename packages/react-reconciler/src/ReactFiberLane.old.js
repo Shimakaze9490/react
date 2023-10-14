@@ -510,6 +510,8 @@ export function claimNextRetryLane(): Lane {
   return lane;
 }
 
+// 100010100 <----
+// HACK
 export function getHighestPriorityLane(lanes: Lanes): Lane {
   return lanes & -lanes;
 }
