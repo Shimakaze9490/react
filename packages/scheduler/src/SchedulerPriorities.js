@@ -9,8 +9,6 @@
 
 export type PriorityLevel = 0 | 1 | 2 | 3 | 4 | 5;
 
-// 调度的6个优先级变量
-
 // TODO: Use symbols?
 export const NoPriority = 0;
 export const ImmediatePriority = 1;

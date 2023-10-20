@@ -819,7 +819,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
         break;
     }
 
-    // HACK 真正执行根据优先级的调度!! 关注回调performConcurrentWorkOnRoot, render阶段的入口
+    // HACK 真正执行根据优先级的调度 关注回调performConcurrentWorkOnRoot, render阶段的入口
     newCallbackNode = scheduleCallback(
       schedulerPriorityLevel,
       performConcurrentWorkOnRoot.bind(null, root),
