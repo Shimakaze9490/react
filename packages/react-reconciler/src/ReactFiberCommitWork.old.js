@@ -580,7 +580,7 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
           }
         }
 
-        // HACK 最终执行回调函数create, 产生destory!!
+        // HACK 最终执行回调函数create, 产生destory
         // Mount
         const create = effect.create;
         if (__DEV__) {

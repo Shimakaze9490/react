@@ -749,6 +749,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
     return;
   }
 
+  // HACK 打断了旧任务
   if (existingCallbackNode != null) {
     // Cancel the existing callback. We'll schedule a new one below.
     cancelCallback(existingCallbackNode);
@@ -757,8 +758,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
   // Schedule a new callback.
   let newCallbackNode;
 
-  // HACK 核心: 调度是同步的还是异步的!!
-
+  // HACK 新调度任务是同步的还是异步的!!
   if (newCallbackPriority === SyncLane) {
     // Special case: Sync React callbacks are scheduled on a special
     // internal queue
@@ -2012,7 +2012,7 @@ function commitRootImpl(
     // TODO: Might be better if `flushPassiveEffects` did not automatically
     // flush synchronous work at the end, to avoid factoring hazards like this.
 
-    // HACK 执行useEffect, 也就是PassiveEffect
+    // HACK 检查useEffect, 也就是PassiveEffect
     flushPassiveEffects();
   } while (rootWithPendingPassiveEffects !== null);
   flushRenderPhaseStrictModeWarningsInDEV();

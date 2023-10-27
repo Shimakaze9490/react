@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 // import logo from './logo.svg';
 import './App.css';
-import {useState, useEffect, useRef} from 'react';
+import {useState, useEffect, Component} from 'react';
 
 const cityName = () => {
   // eslint-disable-next-line
@@ -15,7 +15,7 @@ const cityName = () => {
   return [name, setName];
 };
 
-function App() {
+function AppFN() {
   // console.log('workInProgress', workInProgress);
   // console.log('workInProgressRoot', workInProgressRoot);
   // console.log('workInProgressHook', workInProgressHook);
@@ -47,4 +47,16 @@ function App() {
   );
 }
 
-export default App;
+class AppClass extends Component {
+  render() {
+    // debugger;
+    return (
+      <div>
+        <p>this is class comp</p>
+      </div>
+    );
+  }
+}
+
+export default AppClass;
+// export default AppFN;

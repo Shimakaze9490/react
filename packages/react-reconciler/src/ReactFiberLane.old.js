@@ -404,6 +404,7 @@ export function markStarvedLanesAsExpired(
   // it as expired to force it to finish.
   let lanes = pendingLanes;
   while (lanes > 0) {
+    // 31条赛道, 31个index
     const index = pickArbitraryLaneIndex(lanes);
     const lane = 1 << index;
 
@@ -416,6 +417,7 @@ export function markStarvedLanesAsExpired(
         (lane & suspendedLanes) === NoLanes ||
         (lane & pingedLanes) !== NoLanes
       ) {
+        // HACK 对应位置lane为其初始化过期时间
         // Assumes timestamps are monotonically increasing.
         expirationTimes[index] = computeExpirationTime(lane, currentTime);
       }
