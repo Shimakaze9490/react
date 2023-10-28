@@ -405,7 +405,6 @@ export function renderWithHooks<Props, SecondArg>(
   // The following should have already been reset
   // currentHook = null;
   // workInProgressHook = null;
-
   // didScheduleRenderPhaseUpdate = false;
   // localIdCounter = 0;
 

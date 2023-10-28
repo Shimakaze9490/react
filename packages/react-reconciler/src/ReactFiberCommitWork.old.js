@@ -319,7 +319,7 @@ let focusedInstanceHandle: null | Fiber = null;
 let shouldFireAfterActiveInstanceBlur: boolean = false;
 
 // HACK commit的子阶段1
-// commitBeforeMutationEffects -> commitBeforeMutationEffects_begin -> 
+// commitBeforeMutationEffects -> commitBeforeMutationEffects_begin ->
 export function commitBeforeMutationEffects(
   root: FiberRoot,
   firstChild: Fiber,
@@ -338,6 +338,8 @@ export function commitBeforeMutationEffects(
 }
 
 function commitBeforeMutationEffects_begin() {
+  // HACK 这个while循环向下处理每一个nextEffect
+  // nextEffect = child
   while (nextEffect !== null) {
     const fiber = nextEffect;
 
@@ -368,6 +370,8 @@ function commitBeforeMutationEffects_begin() {
 }
 
 function commitBeforeMutationEffects_complete() {
+  // HACK 这个while循环向下处理每一个nextEffect
+  // nextEffect = fiber.return
   while (nextEffect !== null) {
     const fiber = nextEffect;
     setCurrentDebugFiberInDEV(fiber);
@@ -569,7 +573,6 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
     const firstEffect = lastEffect.next; // 环形链表last.next
     let effect = firstEffect;
     do {
-
       // 这里比较flags, 本次执行effect类别
       if ((effect.tag & flags) === flags) {
         if (enableSchedulingProfiler) {
@@ -741,6 +744,7 @@ function commitLayoutEffectOnFiber(
               recordLayoutEffectDuration(finishedWork);
             }
           } else {
+            // HACK 核心更新, 注意第一个参数: HookLayout | HookHasEffect
             commitHookEffectListMount(HookLayout | HookHasEffect, finishedWork);
           }
         }
@@ -2487,6 +2491,7 @@ function commitLayoutEffects_begin(
   // Suspense layout effects semantics don't change for legacy roots.
   const isModernRoot = (subtreeRoot.mode & ConcurrentMode) !== NoMode;
 
+  // HACK 遍历effect
   while (nextEffect !== null) {
     const fiber = nextEffect;
     const firstChild = fiber.child;
@@ -2538,6 +2543,8 @@ function commitLayoutEffects_begin(
         nextEffect = fiber;
         offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden;
         offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
+
+        // 上面是预备工作, 往下是核心代码
         commitLayoutMountEffects_complete(subtreeRoot, root, committedLanes);
 
         continue;
@@ -2779,7 +2786,6 @@ function commitPassiveMountEffects_complete(
     if ((fiber.flags & Passive) !== NoFlags) {
       setCurrentDebugFiberInDEV(fiber);
       try {
-
         // HACK 执行
         commitPassiveMountOnFiber(
           root,

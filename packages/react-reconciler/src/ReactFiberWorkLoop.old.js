@@ -2012,7 +2012,8 @@ function commitRootImpl(
     // TODO: Might be better if `flushPassiveEffects` did not automatically
     // flush synchronous work at the end, to avoid factoring hazards like this.
 
-    // HACK 检查useEffect, 也就是PassiveEffect
+    // HACK rootWithPendingPassiveEffects 会在layout阶段设置为true
+    // 执行useEffect上一次的销毁函数, 和本次更新的回调函数
     flushPassiveEffects();
   } while (rootWithPendingPassiveEffects !== null);
   flushRenderPhaseStrictModeWarningsInDEV();
@@ -2076,6 +2077,7 @@ function commitRootImpl(
   let remainingLanes = mergeLanes(finishedWork.lanes, finishedWork.childLanes);
   markRootFinished(root, remainingLanes);
 
+  // 重置变量
   if (root === workInProgressRoot) {
     // We can reset these now that they are finished.
     workInProgressRoot = null;
@@ -2168,6 +2170,7 @@ function commitRootImpl(
       rootCommittingMutationOrLayoutEffects = root;
     }
 
+    // HACK 子阶段2
     // The next phase is the mutation phase, where we mutate the host tree.
     commitMutationEffects(root, finishedWork, lanes);
 
@@ -2195,6 +2198,8 @@ function commitRootImpl(
     if (enableSchedulingProfiler) {
       markLayoutEffectsStarted(lanes);
     }
+
+    // HACK 子阶段3
     commitLayoutEffects(finishedWork, root, lanes);
     if (__DEV__) {
       if (enableDebugTracing) {
@@ -2285,6 +2290,8 @@ function commitRootImpl(
     onCommitRootTestSelector();
   }
 
+  // HACK commit的结尾标志: 重新调度
+  // 因为可能有低优先级的更新被跳过；或者在本次完整流程中产生了新的更新。
   // Always call this before exiting `commitRoot`, to ensure that any
   // additional work on this root is scheduled.
   ensureRootIsScheduled(root, now());
@@ -2323,6 +2330,7 @@ function commitRootImpl(
     flushPassiveEffects();
   }
 
+  // HACK 检查是否为无限嵌套的更新
   // Read this again, since a passive effect might have updated it
   remainingLanes = root.pendingLanes;
   if (includesSomeLane(remainingLanes, (SyncLane: Lane))) {
@@ -2342,6 +2350,7 @@ function commitRootImpl(
     nestedUpdateCount = 0;
   }
 
+  // HACK 调度同步的副作用, 比如 useLayoutEffect
   // If layout work was scheduled, flush it now.
   flushSyncCallbacks();
 
