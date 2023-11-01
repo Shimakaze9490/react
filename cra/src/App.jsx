@@ -1,62 +1,39 @@
-/* eslint-disable no-undef */
-// import logo from './logo.svg';
+/* eslint-disable */
+import React, {useState, useEffect, useLayoutEffect} from 'react';
 import './App.css';
-import {useState, useEffect, Component} from 'react';
 
-const cityName = () => {
-  // eslint-disable-next-line
-  const [name, setName] = useState('');
+const cityName = () => { // 自定义hook如果没有use开头能执行吗
+  const [name, setName] = useState('花满楼');
 
-  // eslint-disable-next-line
-  useEffect(() => {
-    setName('陆小凤');
-  }, []);
+  useLayoutEffect(() => {
+    setName('司空摘星');
+  }, ['d']);
+  useState('燕南飞');
 
   return [name, setName];
 };
-
-function AppFN() {
-  // console.log('workInProgress', workInProgress);
-  // console.log('workInProgressRoot', workInProgressRoot);
-  // console.log('workInProgressHook', workInProgressHook);
-  // debugger;
-
-  const [count, setCount] = useState(0);
+function App() {
+  useState('a'); // HACK 函数hook链::  a -> 8 -> 4 -> 司空摘星 -> 4 -> 燕南飞 -> End
+  useEffect(() => {}, ['b']); // tag: 8 Passive
+  useLayoutEffect(() => {}, ['c']); // tag: 4 Layout
 
   // 实际React不依赖名称执行hook, 而是这里的位置和当前上下文
   const [name, setName] = cityName();
 
   return (
-    <span className="App">
-      <p>
-        Edit <code>src/App.js</code> and save to reload.
-      </p>
-      <button
-        onClick={() => {
-          setCount(org => (org + 73) % 321);
-        }}>
-        {count}
-      </button>
-      <button
-        onClick={() => {
-          setName(org => (org !== '燕南飞' ? '燕南飞' : '司空摘星'));
-        }}>
-        {name}
-      </button>
-    </span>
+    <React.StrictMode> {/* HACK fiber链: 3 -> 0 -> 8 -> 5_h2 -> 5_li -> 7 -> 6 -> End */}
+      <h2>
+        <li id="1">
+          <>
+            {name}帧循环
+            <img />
+          </>
+          <span id="2">宏任务</span>
+        </li>
+        <p id="3">时间切片</p>
+      </h2>
+    </React.StrictMode>
   );
 }
 
-class AppClass extends Component {
-  render() {
-    // debugger;
-    return (
-      <div>
-        <p>this is class comp</p>
-      </div>
-    );
-  }
-}
-
-export default AppClass;
-// export default AppFN;
+export default App;
