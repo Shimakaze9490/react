@@ -580,7 +580,7 @@ if (typeof localSetImmediate === 'function') {
 }
 
 function requestHostCallback(callback) {
-  scheduledHostCallback = callback;
+  scheduledHostCallback = callback; // 为什么待调用的函数需要存成全局变量? 因为是下一个宏任务调用的, 当前执行栈将全部销毁
   if (!isMessageLoopRunning) {
     isMessageLoopRunning = true;
     schedulePerformWorkUntilDeadline();
