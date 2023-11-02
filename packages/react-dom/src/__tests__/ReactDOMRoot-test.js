@@ -18,6 +18,7 @@ let act;
 let useEffect;
 
 describe('ReactDOMRoot', () => {
+  console.log('ReactDOMRoot!!!!!!!!!!!!!!!')
   let container;
 
   beforeEach(() => {

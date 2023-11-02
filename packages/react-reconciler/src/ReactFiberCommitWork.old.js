@@ -3006,6 +3006,7 @@ function commitPassiveMountOnFiber(
   }
 }
 
+// Unmount 包括 执行删除 / 执行decrtoy
 export function commitPassiveUnmountEffects(firstChild: Fiber): void {
   nextEffect = firstChild;
   commitPassiveUnmountEffects_begin();

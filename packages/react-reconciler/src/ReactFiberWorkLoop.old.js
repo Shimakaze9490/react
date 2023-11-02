@@ -2350,7 +2350,8 @@ function commitRootImpl(
     nestedUpdateCount = 0;
   }
 
-  // HACK 调度同步的副作用, 比如 useLayoutEffect
+  // 如果在上面的LayoutEffect, 中触发了其他的副作用, 同步调用它
+  // 如: useLayoutEffect --> 里面执行了setState, 那这个setState就会同步更新!
   // If layout work was scheduled, flush it now.
   flushSyncCallbacks();
 
@@ -2473,8 +2474,9 @@ function flushPassiveEffectsImpl() {
   const prevExecutionContext = executionContext;
   executionContext |= CommitContext;
 
-  commitPassiveUnmountEffects(root.current);
-  commitPassiveMountEffects(root, root.current, lanes, transitions);
+  /* HACK 这里又改成FiberNode的递归 */
+  commitPassiveUnmountEffects(root.current); // <--- 先Unmount
+  commitPassiveMountEffects(root, root.current, lanes, transitions); // 再Mount
 
   // TODO: Move to commitPassiveMountEffects
   if (enableProfilerTimer && enableProfilerCommitHooks) {

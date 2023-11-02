@@ -52,6 +52,7 @@ describe('SchedulerBrowser', () => {
     }
   });
 
+  /* HACK 运行时支撑, 基础方法 */
   function installMockBrowserRuntime() {
     let hasPendingMessageEvent = false;
     let isFiringMessageEvent = false;
@@ -61,10 +62,11 @@ describe('SchedulerBrowser', () => {
     let timerIDCounter = 0;
     // let timerIDs = new Map();
 
-    let eventLog = [];
+    let eventLog = []; // 阶段输出
 
     let currentTime = 0;
 
+    // 模拟 performance.now
     global.performance = {
       now() {
         return currentTime;
@@ -85,6 +87,8 @@ describe('SchedulerBrowser', () => {
     };
 
     const port1 = {};
+
+    // 模拟MessageChannel
     const port2 = {
       postMessage() {
         if (hasPendingMessageEvent) {
@@ -94,6 +98,7 @@ describe('SchedulerBrowser', () => {
         hasPendingMessageEvent = true;
       },
     };
+
     global.MessageChannel = function MessageChannel() {
       this.port1 = port1;
       this.port2 = port2;
@@ -127,18 +132,21 @@ describe('SchedulerBrowser', () => {
     function resetTime() {
       currentTime = 0;
     }
+
+    // 执行Message事件
     function fireMessageEvent() {
       ensureLogIsEmpty();
       if (!hasPendingMessageEvent) {
         throw Error('No message event was scheduled');
       }
       hasPendingMessageEvent = false;
-      const onMessage = port1.onmessage;
+      const onMessage = port1.onmessage; // 这个在源码里会被赋值成传入的callback, 如何验证 TODO
       log('Message Event');
 
       isFiringMessageEvent = true;
       try {
-        onMessage();
+        onMessage(); // <---- 正式执行回调
+        log('Finished! Message Event');
       } finally {
         isFiringMessageEvent = false;
         if (hasPendingDiscreteEvent) {
@@ -188,13 +196,14 @@ describe('SchedulerBrowser', () => {
     };
   }
 
+  // 基础调度流程
   it('task that finishes before deadline', () => {
     scheduleCallback(NormalPriority, () => {
       runtime.log('Task');
     });
-    runtime.assertLog(['Post Message']);
-    runtime.fireMessageEvent();
-    runtime.assertLog(['Message Event', 'Task']);
+    runtime.assertLog(['Post Message']); // 这个是执行post2.postMessage
+    runtime.fireMessageEvent(); // 这个是执行Message宏任务, `log('Message Event')`
+    runtime.assertLog(['Message Event', 'Task', 'Finished! Message Event']); // 最后检查结果
   });
 
   it('task with continuation', () => {
@@ -222,7 +231,7 @@ describe('SchedulerBrowser', () => {
 
     runtime.fireMessageEvent();
     runtime.assertLog(['Message Event', 'Continuation']);
-  });
+  })
 
   it('multiple tasks', () => {
     scheduleCallback(NormalPriority, () => {
