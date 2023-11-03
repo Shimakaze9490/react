@@ -2,8 +2,13 @@ import ReactDOM from 'react-dom/client'; // 新版
 // import ReactDOM from 'react-dom'; // 旧版
 import React from 'react';
 import App from './App';
+import './Scheduler.ts';
 
-window.flag = true;
+window.flag = false;
+
+// console.log('ReactDOM', ReactDOM);
+// console.log('React', React);
+
 
 /* HACK 挂载容器 */
 const rootDom = document.getElementById('root');

@@ -857,7 +857,7 @@ function completeWork(
   // to the current tree provider fiber is just as fast and less error-prone.
   // Ideally we would have a special version of the work loop only
   // for hydration.
-  popTreeContext(workInProgress);
+  popTreeContext(workInProgress); // context栈弹栈
   switch (workInProgress.tag) {
     case IndeterminateComponent:
     case LazyComponent:
@@ -1017,7 +1017,6 @@ function completeWork(
           );
 
           appendAllChildren(instance, workInProgress, false, false);
-
           workInProgress.stateNode = instance;
 
           // Certain renderers require commit-time effects for initial mount.

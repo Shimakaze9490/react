@@ -1835,11 +1835,12 @@ function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
   }
 }
 
+// performConcurrentWorkOnRoot -> renderRootConcurrent -> workLoopConcurrent
 /** @noinline */
 function workLoopConcurrent() {
   // Perform work until Scheduler asks us to yield
-  while (workInProgress !== null && !shouldYield()) {
-    performUnitOfWork(workInProgress);
+  while (workInProgress !== null && !shouldYield()) { /* shouldYield就是检验时间切片 */
+    performUnitOfWork(workInProgress); // 每次处理一个fiber节点
   }
 }
 
@@ -1847,13 +1848,15 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   // The current, flushed, state of this fiber is the alternate. Ideally
   // nothing should rely on this, but relying on it here means that we don't
   // need an additional field on the work in progress.
+
+  // 获取缓存备份节点: current <--- alternate
   const current = unitOfWork.alternate;
   setCurrentDebugFiberInDEV(unitOfWork);
 
-  let next;
+  let next; // 后续是否有子节点
   if (enableProfilerTimer && (unitOfWork.mode & ProfileMode) !== NoMode) {
     startProfilerTimer(unitOfWork);
-    next = beginWork(current, unitOfWork, subtreeRenderLanes);
+    next = beginWork(current, unitOfWork, subtreeRenderLanes); // 开始模拟递阶段
     stopProfilerTimerIfRunningAndRecordDelta(unitOfWork, true);
   } else {
     next = beginWork(current, unitOfWork, subtreeRenderLanes);
@@ -1863,7 +1866,7 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
   if (next === null) {
     // If this doesn't spawn new work, complete the current work.
-    completeUnitOfWork(unitOfWork);
+    completeUnitOfWork(unitOfWork); // 开始模拟归阶段
   } else {
     workInProgress = next;
   }
@@ -1874,6 +1877,8 @@ function performUnitOfWork(unitOfWork: Fiber): void {
 function completeUnitOfWork(unitOfWork: Fiber): void {
   // Attempt to complete the current unit of work, then move to the next
   // sibling. If there are no more siblings, return to the parent fiber.
+
+  /* HACK 这里比较复杂, 没有子节点, 我们需要边查找 */
   let completedWork = unitOfWork;
   do {
     // The current, flushed, state of this fiber is the alternate. Ideally
