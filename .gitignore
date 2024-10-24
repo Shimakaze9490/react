@@ -7,7 +7,7 @@ scripts/flow/*/.flowconfig
 .grunt
 _SpecRunner.html
 __benchmarks__
-# build/
+# build/ 保存
 remote-repo/
 coverage/
 .module-cache

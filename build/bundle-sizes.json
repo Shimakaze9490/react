@@ -5,56 +5,56 @@
       "bundleType": "NODE_DEV",
       "packageName": "react",
       "size": 91844,
-      "gzip": 24754
+      "gzip": 24721
     },
     {
       "filename": "react-jsx-runtime.development.js",
       "bundleType": "NODE_DEV",
       "packageName": "react",
       "size": 42076,
-      "gzip": 12304
+      "gzip": 12309
     },
     {
       "filename": "react-jsx-dev-runtime.development.js",
       "bundleType": "NODE_DEV",
       "packageName": "react",
       "size": 41477,
-      "gzip": 12128
+      "gzip": 12134
     },
     {
       "filename": "react-dom.development.js",
       "bundleType": "NODE_DEV",
       "packageName": "react-dom",
       "size": 1056518,
-      "gzip": 236472
+      "gzip": 236286
     },
     {
       "filename": "scheduler.development.js",
       "bundleType": "NODE_DEV",
       "packageName": "scheduler",
       "size": 17497,
-      "gzip": 4928
+      "gzip": 4901
     },
     {
       "filename": "scheduler-unstable_mock.development.js",
       "bundleType": "NODE_DEV",
       "packageName": "scheduler",
       "size": 17457,
-      "gzip": 4195
+      "gzip": 4176
     },
     {
       "filename": "scheduler-unstable_post_task.development.js",
       "bundleType": "NODE_DEV",
       "packageName": "scheduler",
       "size": 6883,
-      "gzip": 2083
+      "gzip": 2059
     },
     {
       "filename": "jest-react.development.js",
       "bundleType": "NODE_DEV",
       "packageName": "jest-react",
       "size": 9928,
-      "gzip": 3455
+      "gzip": 3434
     }
   ]
 }
